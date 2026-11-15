@@ -28,12 +28,14 @@ SSH_OPTS=(
   -p "$ORANGE_PORT"
 )
 
-# 重连前先清掉对端残留的监听，否则 -R 会一直报 failed for listen port
+# 重连前先清掉对端残留的监听，否则 -R 会一直报 failed for listen port。
+# 默认在橙子的 moss-tunnel 容器里用 /kill_port.py 清（脚本随容器已有）。
 clean_remote() {
-  [[ -n "${MOSS_TUNNEL_CLEAN_CMD:-}" ]] || return 0
+  local cmd="${MOSS_TUNNEL_CLEAN_CMD:-test -f /kill_port.py \&\& python3 /kill_port.py ${REMOTE_PORT} || true}"
+  [[ -n "$cmd" ]] || return 0
   timeout 20 ssh -T -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o BatchMode=yes -i "$SSH_KEY" -p "$ORANGE_PORT" \
-    "${ORANGE_USER}@${ORANGE_HOST}" "${MOSS_TUNNEL_CLEAN_CMD}" >/dev/null 2>&1 || true
+    "${ORANGE_USER}@${ORANGE_HOST}" "${cmd}" >/dev/null 2>&1 || true
 }
 
 log "隧道启动：${BIND_ADDR}:${REMOTE_PORT}（橙子）→ 127.0.0.1:${LOCAL_PORT}（本机）"

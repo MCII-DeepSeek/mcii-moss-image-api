@@ -61,6 +61,30 @@ python3 /app/server.py \
   >"$LOG_DIR/api.log" 2>&1 &
 API_PID=$!
 
+# 可选：开机自动建反向隧道。MOSS_TUNNEL_HOST 给了才启动。
+# 私钥用 base64 通过环境变量塞进来（MOSS_TUNNEL_KEY_B64），落盘后立刻 chmod 600。
+if [[ -n "${MOSS_TUNNEL_HOST:-}" ]]; then
+  KEY_PATH="${MOSS_SSH_KEY:-/root/.ssh/tunnel_key}"
+  if [[ -n "${MOSS_TUNNEL_KEY_B64:-}" ]]; then
+    mkdir -p "$(dirname "$KEY_PATH")"
+    printf '%s' "$MOSS_TUNNEL_KEY_B64" | base64 -d > "$KEY_PATH"
+    chmod 600 "$KEY_PATH"
+    log "已写入隧道私钥 $KEY_PATH"
+  fi
+  if [[ -f "$KEY_PATH" ]]; then
+    MOSS_ORANGE_HOST="$MOSS_TUNNEL_HOST" \
+    MOSS_ORANGE_SSH_PORT="${MOSS_TUNNEL_PORT:-22}" \
+    MOSS_ORANGE_USER="${MOSS_TUNNEL_USER:-root}" \
+    MOSS_REMOTE_PORT="${MOSS_TUNNEL_REMOTE_PORT:-18010}" \
+    MOSS_BIND="${MOSS_TUNNEL_BIND:-127.0.0.1}" \
+    MOSS_LOCAL_PORT="$API_PORT" \
+      nohup bash /app/scripts/tunnel.sh >>"$LOG_DIR/tunnel.log" 2>&1 &
+    log "隧道守护已启动 → ${MOSS_TUNNEL_HOST}"
+  else
+    log "MOSS_TUNNEL_HOST 已设但没有私钥，跳过隧道"
+  fi
+fi
+
 # 任意一个挂了就整体退出，交给 Docker 的 restart 策略
 while true; do
   if ! kill -0 "$COMFY_PID" 2>/dev/null; then
