@@ -53,8 +53,10 @@ RUN . /venv/main/bin/activate \
     && pip install -r /opt/moss/app/requirements.txt \
     && chmod +x /opt/moss/scripts/*.sh
 
-# 交给 Supervisor 托管，别再覆盖镜像的 ENTRYPOINT（那是 Vast 的启动层）
-COPY supervisor/moss.conf /etc/supervisor/conf.d/moss.conf
+# Vast 的 entrypoint 优先执行 boot_custom.sh（存在就跳过默认启动），
+# 我们借它在 SSH 模式下也能把业务进程拉起来，然后把控制权交回默认启动流程。
+COPY scripts/boot_custom.sh /opt/instance-tools/bin/boot_custom.sh
+RUN chmod +x /opt/instance-tools/bin/boot_custom.sh
 
 # 面板里能看到我们的服务（端口没 publish 时只是不显示，不影响运行）
 ENV PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:8000:18000:/:MOSS Image API"

@@ -6,7 +6,7 @@
   HF_ENDPOINT          镜像站，国内可设 https://hf-mirror.com
   HF_TOKEN             私有仓库才需要
   MOSS_OPTIONAL_MODELS 设 1 才下载 optional=true 的条目
-  MOSS_MODELS_MANIFEST 清单路径，默认 /app/config/models.json
+  MOSS_MODELS_MANIFEST 清单路径，默认 <仓库>/config/models.json
 """
 
 from __future__ import annotations
@@ -17,7 +17,8 @@ import sys
 import time
 from pathlib import Path
 
-MANIFEST = Path(os.environ.get("MOSS_MODELS_MANIFEST", "/app/config/models.json"))
+_HERE = Path(__file__).resolve().parent
+MANIFEST = Path(os.environ.get("MOSS_MODELS_MANIFEST", str(_HERE.parent / "config" / "models.json")))
 MODEL_DIR = Path(os.environ.get("MOSS_MODEL_DIR", "/models"))
 ENDPOINT = os.environ.get("HF_ENDPOINT", "").strip()
 WITH_OPTIONAL = os.environ.get("MOSS_OPTIONAL_MODELS", "0") == "1"
