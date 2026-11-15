@@ -75,11 +75,7 @@ DMD_STEP_LIMIT = int(os.environ.get("MOSS_DMD_STEP_LIMIT", "20"))
 
 DEFAULT_NEGATIVE = os.environ.get(
     "MOSS_NEGATIVE",
-    "nsfw, nude, naked, explicit, sexual content, erotic, nipples, genitalia, "
-    "cleavage, suggestive, gore, blood, violence, "
-    "worst quality, low quality, bad anatomy, deformed, extra fingers, extra limbs, "
-    "watermark, signature, text, logo, jpeg artifacts, blurry, oversaturated, "
-    "cartoon, anime, 3d render",
+    "worst quality, bad anatomy, watermark, jpeg artifact",
 )
 # 图生图的步数定死，不跟 quality 档位和 num_inference_steps 走
 EDIT_STEPS = int(os.environ.get("MOSS_EDIT_STEPS", "30"))
