@@ -53,12 +53,13 @@ COPY scripts/ /opt/moss/scripts/
 COPY config/ /opt/moss/config/
 RUN . /venv/main/bin/activate \
     && pip install -r /opt/moss/app/requirements.txt \
-    && chmod +x /opt/moss/scripts/*.sh
+    && chmod +x /opt/moss/scripts/*.sh \
+    && sed -i 's/\r$//' /opt/moss/scripts/*.sh /opt/moss/scripts/*.py
 
 # Vast 实际用的是自带的 /.launch，它在每次开机时执行 /root/onstart.sh；
 # 基础镜像那套 entrypoint/boot_custom 在 Vast 上根本不会被调用，所以钩子必须放这里。
 COPY scripts/onstart.sh /root/onstart.sh
-RUN chmod +x /root/onstart.sh
+RUN chmod +x /root/onstart.sh && sed -i 's/\r$//' /root/onstart.sh
 
 # 面板里能看到我们的服务（端口没 publish 时只是不显示，不影响运行）
 ENV PORTAL_CONFIG="localhost:1111:11111:/:Instance Portal|localhost:8000:18000:/:MOSS Image API"
