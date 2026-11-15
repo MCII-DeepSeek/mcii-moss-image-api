@@ -528,6 +528,54 @@ class ImageRequest(BaseModel):
     timeout: float = DEFAULT_TIMEOUT
 
 
+
+# ---------------------------------------------------------------- GPU 体检
+# 租来的机器良莠不齐：同样标着 3090，实际算力能差一倍（电源/散热被限流、
+# 主板只给 PCIe 1.0 的矿板翻新机）。开机后跑一次 1 秒的矩阵乘，把实测
+# 算力写进 /healthz —— 低于 45 TFLOPS 的机器建议直接销毁重租。
+_GPU_PROBE: dict[str, Any] = {}
+
+
+def gpu_probe(force: bool = False) -> dict[str, Any]:
+    global _GPU_PROBE
+    if _GPU_PROBE and not force:
+        return _GPU_PROBE
+    try:
+        import torch
+
+        if not torch.cuda.is_available():
+            _GPU_PROBE = {"available": False}
+            return _GPU_PROBE
+        size = 4096
+        a = torch.randn(size, size, device="cuda", dtype=torch.float16)
+        b = torch.randn(size, size, device="cuda", dtype=torch.float16)
+        for _ in range(3):
+            a @ b
+        torch.cuda.synchronize()
+        start = time.time()
+        rounds = 20
+        for _ in range(rounds):
+            a @ b
+        torch.cuda.synchronize()
+        elapsed = max(time.time() - start, 1e-6)
+        tflops = 2 * size**3 * rounds / elapsed / 1e12
+        name = torch.cuda.get_device_name(0)
+        total = torch.cuda.get_device_properties(0).total_memory / 1e9
+        verdict = "ok" if tflops >= 45 else ("slow" if tflops >= 30 else "bad")
+        _GPU_PROBE = {
+            "available": True,
+            "name": name,
+            "vram_gb": round(total, 1),
+            "tflops_fp16": round(tflops, 1),
+            "verdict": verdict,
+        }
+        del a, b
+        torch.cuda.empty_cache()
+    except Exception as exc:  # 体检失败不影响出图
+        _GPU_PROBE = {"available": False, "error": str(exc)[:120]}
+    return _GPU_PROBE
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, Any]:
     comfy = "down"
@@ -544,6 +592,7 @@ def healthz() -> dict[str, Any]:
         "edits": any(installed.values()),
         "edit_loras": installed,
         "steps": QUALITY_STEPS,
+        "gpu": gpu_probe(),
         "concurrency": {
             "max": MAX_CONCURRENCY,
             "queue_limit": QUEUE_LIMIT,
