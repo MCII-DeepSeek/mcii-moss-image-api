@@ -70,6 +70,7 @@ if [[ -n "${MOSS_TUNNEL_HOST:-}" ]]; then
     MOSS_REMOTE_PORT="${MOSS_TUNNEL_REMOTE_PORT:-18010}" \
     MOSS_BIND="${MOSS_TUNNEL_BIND:-127.0.0.1}" \
     MOSS_LOCAL_PORT="$API_PORT" \
+    MOSS_SSH_KEY="$KEY_PATH" \
       bash /opt/moss/scripts/tunnel.sh >>"$LOG_DIR/tunnel.log" 2>&1 &
     log "隧道守护已启动 → ${MOSS_TUNNEL_HOST}"
   else

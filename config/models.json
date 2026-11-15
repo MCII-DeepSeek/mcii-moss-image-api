@@ -41,7 +41,9 @@
       "repo": "lodestones/MOSS-Image-SFT-8-steps-dmd",
       "path": "moss_8step_dmd.safetensors",
       "size_gb": 1.2,
-      "required": false
+      "required": false,
+      "optional": true,
+      "note": "8 步 DMD，只在 MOSS_OPTIONAL_MODELS=1 时下载；四档步数都 ≥20，用不到"
     }
   ]
 }

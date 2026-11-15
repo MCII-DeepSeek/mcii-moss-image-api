@@ -31,7 +31,7 @@ SSH_OPTS=(
 # 重连前先清掉对端残留的监听，否则 -R 会一直报 failed for listen port。
 # 默认在橙子的 moss-tunnel 容器里用 /kill_port.py 清（脚本随容器已有）。
 clean_remote() {
-  local cmd="${MOSS_TUNNEL_CLEAN_CMD:-test -f /kill_port.py \&\& python3 /kill_port.py ${REMOTE_PORT} || true}"
+  local cmd="${MOSS_TUNNEL_CLEAN_CMD:-test -f /kill_port.py && python3 /kill_port.py ${REMOTE_PORT} || true}"
   [[ -n "$cmd" ]] || return 0
   timeout 20 ssh -T -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
     -o BatchMode=yes -i "$SSH_KEY" -p "$ORANGE_PORT" \

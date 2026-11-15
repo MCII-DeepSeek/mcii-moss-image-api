@@ -12,7 +12,9 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     DEBIAN_FRONTEND=noninteractive \
     COMFY_DIR=/opt/ComfyUI \
-    MOSS_MODEL_DIR=/models
+    MOSS_MODEL_DIR=/models \
+    MOSS_DL_THREADS=8 \
+    MOSS_SOURCES=modelscope,huggingface,hf-mirror
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 libglib2.0-0 \
