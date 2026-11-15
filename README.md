@@ -39,15 +39,17 @@ OpenAI 客户端 / sub2api
 
 ## 快速开始
 
+镜像基于 **Vast.ai 官方基础镜像**（`vastai/base-image`），所以 SSH、Supervisor、
+Instance Portal 和实例日志都能正常工作；服务由 Supervisor 托管，开机自启、挂了自重启。
+
 ```bash
-docker run -d --gpus all --ipc=host --shm-size=32gb \
-  -p 127.0.0.1:8000:8000 \
+docker run -d --gpus all -p 127.0.0.1:8000:8000 \
   -v /data/moss-models:/models \
   -e MOSS_API_KEY=sk-your-key \
   ghcr.io/mcii-deepseek/mcii-moss-image-api:latest
 ```
 
-首次启动会检查 `/models`，缺失才下载（约 17GB，支持断点续传）。国内可加
+首次启动会检查 `/models`，缺失才下载（约 16GB，支持断点续传）。国内可加
 `-e HF_ENDPOINT=https://hf-mirror.com`。
 
 ```bash

@@ -12,7 +12,9 @@
 | 镜像类型 | 公共（GHCR 公共包匿名可拉） |
 | 启动模式 | **Docker 入口点**（三张卡片里最右边那张） |
 
-> 不要选 Jupyter。镜像的 ENTRYPOINT 会自己起 ComfyUI 和网关，选 Jupyter 只会多一层没用的界面。
+> 不要选 Jupyter。镜像基于 Vast 官方基础镜像，ENTRYPOINT 仍然是 Vast 的启动层
+> （SSH、Supervisor、Portal 都靠它），我们的服务是挂在 Supervisor 里的一个 program，
+> 开机自启、崩溃自动重启。
 
 ## 二、端口
 
