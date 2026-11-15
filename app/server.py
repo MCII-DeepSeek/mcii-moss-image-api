@@ -63,9 +63,9 @@ DEFAULT_EDIT_VARIANT = os.environ.get("MOSS_EDIT_DEFAULT", "auto")
 
 # quality 档位 -> 采样步数。四个档位都 >= DMD_STEP_LIMIT，一律走基底模型 + 真 CFG。
 QUALITY_STEPS = {
-    "low": int(os.environ.get("MOSS_STEPS_LOW", "24")),
-    "medium": int(os.environ.get("MOSS_STEPS_MEDIUM", "30")),
-    "high": int(os.environ.get("MOSS_STEPS_HIGH", "36")),
+    "low": int(os.environ.get("MOSS_STEPS_LOW", "30")),
+    "medium": int(os.environ.get("MOSS_STEPS_MEDIUM", "40")),
+    "high": int(os.environ.get("MOSS_STEPS_HIGH", "50")),
     "auto": int(os.environ.get("MOSS_STEPS_AUTO", "30")),
 }
 DEFAULT_STEPS = QUALITY_STEPS["auto"]
@@ -75,9 +75,14 @@ DMD_STEP_LIMIT = int(os.environ.get("MOSS_DMD_STEP_LIMIT", "20"))
 
 DEFAULT_NEGATIVE = os.environ.get(
     "MOSS_NEGATIVE",
-    "worst quality, low quality, bad anatomy, extra fingers, watermark, text, "
-    "jpeg artifacts, blurry, oversaturated",
+    "nsfw, nude, naked, explicit, sexual content, erotic, nipples, genitalia, "
+    "cleavage, suggestive, gore, blood, violence, "
+    "worst quality, low quality, bad anatomy, deformed, extra fingers, extra limbs, "
+    "watermark, signature, text, logo, jpeg artifacts, blurry, oversaturated, "
+    "cartoon, anime, 3d render",
 )
+# 图生图的步数定死，不跟 quality 档位和 num_inference_steps 走
+EDIT_STEPS = int(os.environ.get("MOSS_EDIT_STEPS", "30"))
 DEFAULT_COMPRESSION = int(os.environ.get("MOSS_COMPRESSION", "88"))
 
 # ComfyUI 的 executor 一次只跑一个 prompt，>1 只是让第二个先在里面等着。
@@ -736,8 +741,8 @@ async def edit_images(raw: Request, authorization: str = Header(default="")) -> 
     size = str(fields.get("size") or "").strip()
     width, height = parse_size(size) if size else _auto_size(blobs[0])
 
-    quality = fields.get("quality") or "auto"
-    steps = int(fields.get("num_inference_steps") or 0) or quality_to_steps(quality, DEFAULT_STEPS)
+    # 改图固定步数：quality 和 num_inference_steps 都不影响，保证改图延迟稳定
+    steps = EDIT_STEPS
     n = max(1, min(4, int(fields.get("n") or 1)))
     seed_value = fields.get("seed")
     base_seed = int(seed_value) if seed_value not in (None, "") else int(time.time() * 1000) % 2**31
