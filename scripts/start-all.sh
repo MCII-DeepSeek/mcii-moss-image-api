@@ -12,6 +12,8 @@ API_PORT="${MOSS_PORT:-8000}"
 LOG_DIR="${MOSS_LOG_DIR:-/var/log/moss}"
 mkdir -p "$LOG_DIR"
 
+log() { printf '[moss %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
+
 # 只允许一个 start-all 在跑：旧的没退出就等下一轮，避免两套 ComfyUI/网关/隧道互相抢端口
 exec 9>"$LOG_DIR/start-all.lock"
 if ! flock -n 9; then
@@ -19,7 +21,6 @@ if ! flock -n 9; then
   exit 0
 fi
 
-log() { printf '[moss %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 
 if [[ "${MOSS_SKIP_DOWNLOAD:-0}" != "1" ]]; then
   log "检查权重（缺失才下载）"
