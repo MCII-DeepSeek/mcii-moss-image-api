@@ -1,0 +1,2 @@
+# ComfyUI 之外的额外依赖，单独一层方便改
+# 下载权重用 huggingface_hub（已在 app/requirements.txt 里）

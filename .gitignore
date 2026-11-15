@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+out/
+output/
+records/
+*.log
+.env
+models/
+.DS_Store

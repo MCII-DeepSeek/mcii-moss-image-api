@@ -1,0 +1,47 @@
+{
+  "comment": "权重清单。dest 是 /models 下的相对路径；path 找不到时会按文件名在仓库里搜。optional=true 的默认不下载，MOSS_OPTIONAL_MODELS=1 才下。",
+  "files": [
+    {
+      "dest": "diffusion_models/moss_image_sft_int8_convrot.safetensors",
+      "repo": "Comfy-Org/MOSS-Image",
+      "path": "diffusion_models/moss_image_sft_int8_convrot.safetensors",
+      "size_gb": 5.4,
+      "required": true
+    },
+    {
+      "dest": "text_encoders/qwen3.5_9b_int8_convrot.safetensors",
+      "repo": "Comfy-Org/MOSS-Image",
+      "path": "text_encoders/qwen3.5_9b_int8_convrot.safetensors",
+      "size_gb": 9.8,
+      "required": true
+    },
+    {
+      "dest": "vae/flux2-vae_small.safetensors",
+      "repo": "Comfy-Org/MOSS-Image",
+      "path": "vae/flux2-vae_small.safetensors",
+      "size_gb": 0.25,
+      "required": true
+    },
+    {
+      "dest": "loras/moss_image_edit_lora_bf16.safetensors",
+      "repo": "PedroMarinhoDev/Moss-Image-Edit-ComfyUI",
+      "path": "moss_image_edit_lora_bf16.safetensors",
+      "size_gb": 0.3,
+      "required": true
+    },
+    {
+      "dest": "loras/moss_image_edit_hq_armV5.safetensors",
+      "repo": "akhaliq/MOSS-Image-Edit-HQ",
+      "path": "weights/armV5/armV5.safetensors",
+      "size_gb": 0.5,
+      "required": false
+    },
+    {
+      "dest": "loras/moss_8step_dmd.safetensors",
+      "repo": "lodestones/MOSS-Image-SFT-8-steps-dmd",
+      "path": "moss_8step_dmd.safetensors",
+      "size_gb": 1.2,
+      "required": false
+    }
+  ]
+}
