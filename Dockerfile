@@ -5,8 +5,8 @@
 FROM vastai/base-image:cuda-12.8.1-cudnn-devel-ubuntu22.04-py312
 
 ARG COMFY_COMMIT=fd71054
-ARG TORCH_VERSION=2.9.1
-ARG TORCH_INDEX=https://download.pytorch.org/whl/cu128
+ARG TORCH_VERSION=2.15.0
+ARG TORCH_INDEX=https://download.pytorch.org/whl/cu132
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
