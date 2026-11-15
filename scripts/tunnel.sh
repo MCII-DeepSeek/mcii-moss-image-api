@@ -13,6 +13,11 @@ BIND_ADDR="${MOSS_BIND:-127.0.0.1}"
 LOG="${MOSS_TUNNEL_LOG:-/var/log/moss/tunnel.log}"
 
 mkdir -p "$(dirname "$LOG")"
+# 只允许一个隧道守护进程；多个会互相 kill 掉对端监听，把进行中的请求打断
+exec 8>"$(dirname "$LOG")/tunnel.lock"
+if ! flock -n 8; then
+  exit 0
+fi
 log() { printf '[%s] %s\n' "$(date -u '+%F %T')" "$*" | tee -a "$LOG"; }
 
 SSH_OPTS=(

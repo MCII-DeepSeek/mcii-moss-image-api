@@ -12,6 +12,13 @@ API_PORT="${MOSS_PORT:-8000}"
 LOG_DIR="${MOSS_LOG_DIR:-/var/log/moss}"
 mkdir -p "$LOG_DIR"
 
+# 只允许一个 start-all 在跑：旧的没退出就等下一轮，避免两套 ComfyUI/网关/隧道互相抢端口
+exec 9>"$LOG_DIR/start-all.lock"
+if ! flock -n 9; then
+  log "已有 start-all 在跑，退出本次"
+  exit 0
+fi
+
 log() { printf '[moss %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 
 if [[ "${MOSS_SKIP_DOWNLOAD:-0}" != "1" ]]; then
@@ -63,6 +70,7 @@ if [[ -n "${MOSS_TUNNEL_HOST:-}" ]]; then
     chmod 600 "$KEY_PATH"
     log "已写入隧道私钥"
   fi
+  pkill -f 'moss/scripts/tunnel[.]sh' 2>/dev/null || true
   if [[ -f "$KEY_PATH" ]]; then
     MOSS_ORANGE_HOST="$MOSS_TUNNEL_HOST" \
     MOSS_ORANGE_SSH_PORT="${MOSS_TUNNEL_PORT:-22}" \
