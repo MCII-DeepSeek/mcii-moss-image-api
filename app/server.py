@@ -17,6 +17,8 @@ import asyncio
 import base64
 import io
 import json
+import logging
+import traceback
 import os
 import threading
 import time
@@ -475,9 +477,15 @@ _ERROR_TYPES = {
 }
 
 
+LOGGER = logging.getLogger("moss.api")
+
+
 @app.exception_handler(HTTPException)
 async def _http_error(request: Request, exc: HTTPException) -> JSONResponse:
     """把 FastAPI 的 {"detail": ...} 转成 OpenAI 的 {"error": {...}}，客户端不用写两套解析。"""
+    if exc.status_code >= 500:
+        LOGGER.error("%s %s -> %s: %s", request.method, request.url.path,
+                     exc.status_code, exc.detail)
     return JSONResponse(
         status_code=exc.status_code,
         headers=getattr(exc, "headers", None) or None,
@@ -488,6 +496,18 @@ async def _http_error(request: Request, exc: HTTPException) -> JSONResponse:
                 "code": exc.status_code,
             }
         },
+    )
+
+
+@app.exception_handler(Exception)
+async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+    """未捕获异常：记完整栈到日志，客户端拿 OpenAI 形状的 500。"""
+    LOGGER.error("未捕获异常 %s %s\n%s", request.method, request.url.path,
+                 traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"error": {"message": f"{type(exc).__name__}: {exc}",
+                           "type": "server_error", "code": 500}},
     )
 
 
@@ -692,6 +712,24 @@ def _auto_size(payload: bytes) -> tuple[int, int]:
     return width, height
 
 
+def _is_oom(exc: "HTTPException") -> bool:
+    """判断 ComfyUI 报的是不是显存不足（多参考图在 24G 卡上很容易撞到）。"""
+    detail = str(getattr(exc, "detail", "")).lower()
+    return ("out of memory" in detail) or ("would exceed allowed memory" in detail)
+
+
+def free_comfy() -> None:
+    """让 ComfyUI 释放缓存，给降级重试腾显存（不动已驻留的权重）。"""
+    try:
+        body = json.dumps({"unload_models": False, "free_memory": True}).encode()
+        req = urllib.request.Request(
+            f"{COMFY_URL}/free", data=body, headers={"Content-Type": "application/json"}
+        )
+        urllib.request.urlopen(req, timeout=10).read()
+    except Exception:  # noqa: BLE001 - 释放失败不影响主流程
+        pass
+
+
 @app.post("/v1/images/edits")
 async def edit_images(raw: Request, authorization: str = Header(default="")) -> JSONResponse:
     """OpenAI /v1/images/edits：同时接受 multipart/form-data 和 JSON。
@@ -754,6 +792,7 @@ async def edit_images(raw: Request, authorization: str = Header(default="")) -> 
     started = time.time()
     staged: list[str] = []
     images: list[dict[str, str]] = []
+    degraded: dict[str, Any] = {}
     cancel = threading.Event()
     watcher = asyncio.create_task(_watch_disconnect(raw, cancel))
     try:
@@ -762,21 +801,50 @@ async def edit_images(raw: Request, authorization: str = Header(default="")) -> 
             staged.append(stage_image(blob, f"{stem}_{index}"))
         for index in range(n):
             seed = (base_seed + index) % 2**32
-            graph = build_edit_graph(
-                prompt=prompt,
-                negative=negative,
-                width=width,
-                height=height,
-                steps=steps,
-                cfg=cfg,
-                seed=seed,
-                ref_names=staged,
-                lora_name=lora_name,
-                edit_format=edit_format,
-            )
-            payload = await run_graph_slotted(graph, timeout, cancel.is_set)
-            payload = encode_image(payload, output_format, compression)
-            images.append({"b64_json": base64.b64encode(payload).decode()})
+            # 显存不足时逐级降级：先缩尺寸，再砍到单参考图。24G 卡上多参考图 + 1024x1536 会 OOM。
+            plan = [(1.0, len(staged))]
+            if len(staged) > 1 or width * height > 1_000_000:
+                plan += [(0.75, len(staged)), (0.75, 1), (0.55, 1)]
+            else:
+                plan += [(0.75, 1)]
+            last_error: HTTPException | None = None
+            for scale, ref_count in plan:
+                used_w = max(256, int(round(width * scale / 16.0)) * 16)
+                used_h = max(256, int(round(height * scale / 16.0)) * 16)
+                refs = staged[:ref_count]
+                graph = build_edit_graph(
+                    prompt=prompt,
+                    negative=negative,
+                    width=used_w,
+                    height=used_h,
+                    steps=steps,
+                    cfg=cfg,
+                    seed=seed,
+                    ref_names=refs,
+                    lora_name=lora_name,
+                    edit_format=edit_format,
+                )
+                try:
+                    payload = await run_graph_slotted(graph, timeout, cancel.is_set)
+                except HTTPException as exc:
+                    if not _is_oom(exc):
+                        raise
+                    last_error = exc
+                    LOGGER.warning(
+                        "改图显存不足，降级重试：scale=%s refs=%d size=%dx%d（原始 %dx%d，%d 张参考图）",
+                        scale, ref_count, used_w, used_h, width, height, len(staged),
+                    )
+                    free_comfy()
+                    continue
+                if scale != 1.0 or ref_count != len(staged):
+                    degraded["size"] = f"{used_w}x{used_h}"
+                    degraded["refs"] = ref_count
+                width, height = used_w, used_h
+                payload = encode_image(payload, output_format, compression)
+                images.append({"b64_json": base64.b64encode(payload).decode()})
+                break
+            else:
+                raise last_error or HTTPException(500, "comfyui execution failed: out of memory")
     except ClientGone:
         raise HTTPException(499, "client disconnected; comfyui job cancelled")
     finally:
@@ -792,6 +860,7 @@ async def edit_images(raw: Request, authorization: str = Header(default="")) -> 
             "size": f"{width}x{height}",
             "edit_lora": lora_name,
             "elapsed_seconds": round(time.time() - started, 2),
+            **({"degraded": degraded} if degraded else {}),
         }
     )
 

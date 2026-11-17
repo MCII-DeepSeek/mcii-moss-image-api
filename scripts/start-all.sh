@@ -15,11 +15,19 @@ mkdir -p "$LOG_DIR"
 log() { printf '[moss %s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 
 # 只允许一个 start-all 在跑：旧的没退出就等下一轮，避免两套 ComfyUI/网关/隧道互相抢端口
-exec 9>"$LOG_DIR/start-all.lock"
-if ! flock -n 9; then
-  log "已有 start-all 在跑，退出本次"
-  exit 0
+# 用 PID 文件而不是 flock：flock 的文件描述符会被子进程（ComfyUI/网关/隧道）继承，
+# 父进程退出后锁仍被占着，导致自愈循环永远进不来、服务挂了也没人重启。
+LOCK_PID="$LOG_DIR/start-all.pid"
+if [[ -f "$LOCK_PID" ]]; then
+  OLD_PID="$(cat "$LOCK_PID" 2>/dev/null || true)"
+  if [[ -n "${OLD_PID:-}" ]] && kill -0 "$OLD_PID" 2>/dev/null \
+     && tr '\0' ' ' <"/proc/$OLD_PID/cmdline" 2>/dev/null | grep -q 'start-all'; then
+    log "已有 start-all 在跑（pid=$OLD_PID），退出本次"
+    exit 0
+  fi
+  log "清理失效的锁（旧 pid=${OLD_PID:-空}）"
 fi
+echo $$ > "$LOCK_PID"
 
 
 if [[ "${MOSS_SKIP_DOWNLOAD:-0}" != "1" ]]; then
