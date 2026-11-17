@@ -769,8 +769,15 @@ async def edit_images(raw: Request, authorization: str = Header(default="")) -> 
         raise HTTPException(400, "prompt is required")
     if not blobs:
         raise HTTPException(400, "image is required")
-    if len(blobs) > 4:
-        raise HTTPException(400, "at most 4 reference images")
+    # 24G 卡上多参考图 + 大尺寸必然 OOM（实测 2 图 1536x1024 单次分配就要 7.81G），
+    # 直接限制成单参考图，宁可明确报错也不让请求撞显存。
+    MAX_REF_IMAGES = 1
+    if len(blobs) > MAX_REF_IMAGES:
+        raise HTTPException(
+            400,
+            f"only 1 reference image is supported (got {len(blobs)}); "
+            "send a single 'image' field, merge multiple refs into one image if needed",
+        )
 
     size = str(fields.get("size") or "").strip()
     width, height = parse_size(size) if size else _auto_size(blobs[0])
@@ -802,11 +809,7 @@ async def edit_images(raw: Request, authorization: str = Header(default="")) -> 
         for index in range(n):
             seed = (base_seed + index) % 2**32
             # 显存不足时逐级降级：先缩尺寸，再砍到单参考图。24G 卡上多参考图 + 1024x1536 会 OOM。
-            plan = [(1.0, len(staged))]
-            if len(staged) > 1 or width * height > 1_000_000:
-                plan += [(0.75, len(staged)), (0.75, 1), (0.55, 1)]
-            else:
-                plan += [(0.75, 1)]
+            plan = [(1.0, 1), (0.75, 1), (0.55, 1)]
             last_error: HTTPException | None = None
             for scale, ref_count in plan:
                 used_w = max(256, int(round(width * scale / 16.0)) * 16)
