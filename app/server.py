@@ -66,8 +66,8 @@ DEFAULT_EDIT_VARIANT = os.environ.get("MOSS_EDIT_DEFAULT", "auto")
 # quality 档位 -> 采样步数。四个档位都 >= DMD_STEP_LIMIT，一律走基底模型 + 真 CFG。
 QUALITY_STEPS = {
     "low": int(os.environ.get("MOSS_STEPS_LOW", "30")),
-    "medium": int(os.environ.get("MOSS_STEPS_MEDIUM", "40")),
-    "high": int(os.environ.get("MOSS_STEPS_HIGH", "50")),
+    "medium": int(os.environ.get("MOSS_STEPS_MEDIUM", "30")),
+    "high": int(os.environ.get("MOSS_STEPS_HIGH", "30")),
     "auto": int(os.environ.get("MOSS_STEPS_AUTO", "30")),
 }
 DEFAULT_STEPS = QUALITY_STEPS["auto"]
